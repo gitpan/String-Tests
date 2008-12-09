@@ -2,7 +2,7 @@ package String::Tests;
 
 use strict;
 use warnings;
-use Carp;
+use Carp 'croak';
 
 =head1 NAME
 
@@ -14,13 +14,13 @@ Version 0.01
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 =head1 SYNOPSIS
 
   use String::Tests;
-  my $boolean = String::Tests->pass( $some_string, $some_tests );
+  my $boolean = String::Tests->pass( $some_string, \@some_tests );
 
 =head1 DESCRIPTION
 
@@ -30,36 +30,44 @@ burden of doing so, by amalgamating all tests into a single boolean method call.
 
 =head1 EXAMPLES
 
-  # 1. run a series of code/regexp tests on a string
+The most useful case is of course to run a series of code and/or regexp tests on a
+string. The example below shows a simple way to validate user password creation.
 
-      my $boolean = String::Tests->pass( 'wimpy_password', [
-          qr/^[\w[:punct:]]{8,16}\z/, # character white list
-          qr/[A-Z]/, # force 1 upper case
-          qr/[a-z]/, # force 1 lower case
-          qr/\d/, # force 1 digit
-          qr/[[:punct:]]/, # force 1 punctuation symbol
-          sub {$self->SUPER::password_tests(@_)}}, # whatever else...
-      ]);
+    my $boolean = String::Tests->pass( 'wimpy_password', [
+        qr/^[\w[:punct:]]{8,16}\z/, # character white list
+        qr/[A-Z]/, # force 1 upper case
+        qr/[a-z]/, # force 1 lower case
+        qr/\d/, # force 1 digit
+        qr/[[:punct:]]/, # force 1 punctuation symbol
+        sub {$self->SUPER::password_tests(@_)}}, # whatever else...
+    ]);
 
-  # 2. run a single code ref or regexp
+When needed you can also run a single code ref or regexp. Whatever function you
+implement will receive the string to be tested (in the example below,
+'email@address.com') as $_[0].
 
-      my $boolean = String::Tests->pass( 'email@address.com', sub {
-          use Email::Valid; return Email::Valid->rfc822(shift);
-      });
-      my $boolean = String::Tests->pass( 'some_string', qr/some_regexp/ );
+    my $boolean = String::Tests->pass( 'email@address.com',
+        sub { use Email::Valid; return Email::Valid->rfc822(shift) }
+    );
+    my $boolean = String::Tests->pass( 'some_string', qr/some_regexp/ );
 
-  # 3. capture return values from a code/regexp test into an array
+While it's unlikely to be useful in most cases, you can also capture return values
+from a regexp test into an array.
 
-      my @blocks_abcd = String::Tests->pass( '10.0.0.1', {
-          regexp => qr/^ (\d{1,3}) \. (\d{1,3}) \. (\d{1,3}) \. (\d{1,3}) \z/x
-      });
+    my @blocks_abcd = String::Tests->pass( '10.0.0.1', 
+        qr/^ (\d{1,3}) \. (\d{1,3}) \. (\d{1,3}) \. (\d{1,3}) \z/x
+    );
 
-      my @domain_parts = String::Tests->pass( 'x.y.z.sub.domain.tld.stld', {
-          code => sub {return split_domain_name(shift)}
-      });
+When running a single code ref, pass() simply returns whatever your function does.
 
-  # If performance is a major issue, and you are using a persistant environment
-  # (such as mod_perl) you can pre-compile the tests as in the example below
+    my @domain_parts = String::Tests->pass( 'x.y.z.sub.domain.tld.stld',
+        sub {return split_domain_name(shift)}
+    );
+
+The pseduo-code below provides a simple example of form validation useful for
+providing feedback to the user about errors. Use of constants can help optimize
+complex sets of tests when operating in a persistant environment (such as
+mod_perl).
 
     package MyPackage;
 
@@ -95,7 +103,7 @@ burden of doing so, by amalgamating all tests into a single boolean method call.
             my ( $error_message, $tests ) = @{ __PACKAGE__->PARAM_TESTS->{$field} };
             # set error messages (if any) so you can alert the user
             $self->errors->{$field} = $error_message
-                if not String::Tests->pass( $http_request->param($field), $tests );
+                unless String::Tests->pass( $http_request->param($field), $tests );
         }
     }
 
@@ -121,21 +129,17 @@ sub pass {
             } elsif ($test_type eq 'CODE') {
                 return if not $test->($string); # callback
             } else {
-                carp "ERROR: type of tests must be 'Regexp' or 'CODE'\n";
-                return;
+                croak "ERROR: type of tests must be 'Regexp' or 'CODE'.\n";
             }
         }
         return 1; # boolean all tests passed
     } elsif ($type eq 'Regexp') {
+        return ( $string =~ /$tests/g ) if wantarray; # assumes capture syntax
         return $string =~ $tests; # simple boolean test
     } elsif ($type eq 'CODE') {
-        return $tests->($string); # assumes boolean result
-    } elsif ($type eq 'HASH') {
-        # eg. my @array = __PACKAGE__->pass('string', {$test});
-        return $tests->{code}->($string) if $tests->{code};
-        return ( $string =~ /$tests->{regexp}/g ) if $tests->{regexp};
+        return $tests->($string); # return whatever the code ref returned
     }
-    carp "ERROR: invalid test type provided\n";
+    croak "ERROR: invalid test type provided.\n";
     return;
 }
 
@@ -181,6 +185,11 @@ L<http://search.cpan.org/dist/String-Tests>
 
 =back
 
+
+=head1 ACKNOWLEDGEMENTS
+
+Everybody. :)
+L<http://en.wikipedia.org/wiki/Standing_on_the_shoulders_of_giants>
 
 =head1 COPYRIGHT & LICENSE
 

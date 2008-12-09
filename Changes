@@ -1,5 +1,8 @@
 Revision history for String-Tests
 
+0.02    Tue  9 Dec 2008
+        Refactored capture syntax and POD
+
 0.01    Date/time
         First version, released on an unsuspecting world.
 
