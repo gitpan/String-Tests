@@ -1,5 +1,8 @@
 Revision history for String-Tests
 
+0.03    Tue  9 Dec 2008
+        Bug fix ... forgot to update $VERSION in POD. oops.
+
 0.02    Tue  9 Dec 2008
         Refactored capture syntax and POD
 
