@@ -10,23 +10,59 @@ String::Tests - run a series of tests on a string
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 
 =head1 SYNOPSIS
 
-  use String::Tests;
-  my $boolean = String::Tests->pass( $some_string, \@some_tests );
+    use String::Tests;
+    my $boolean = String::Tests->pass( $string, \@tests );
 
 =head1 DESCRIPTION
 
 It is very common (for example when doing user input validation) to have to run
 a series of tests on a single string of data. This module attempts to ease the
 burden of doing so, by amalgamating all tests into a single boolean method call.
+
+=head2 EXPORT
+
+None by default
+
+=head1 METHODS
+
+=head2 pass
+
+=cut
+
+sub pass {
+    shift if $_[0] eq __PACKAGE__ or ref $_[0];
+    my ($string, $tests) = @_;
+    my $type = ref $tests;
+    if ($type eq 'ARRAY') {
+        for my $test (@$tests) { # boolean return values only when in list context
+            my $test_type = ref $test;
+            if ($test_type eq 'Regexp') {
+                return if $string !~ $test; # simple boolean test
+            } elsif ($test_type eq 'CODE') {
+                return if not $test->($string); # callback
+            } else {
+                croak "ERROR: type of tests must be 'Regexp' or 'CODE'.\n";
+            }
+        }
+        return 1; # boolean all tests passed
+    } elsif ($type eq 'Regexp') {
+        return ( $string =~ /$tests/g ) if wantarray; # assumes capture syntax
+        return $string =~ $tests; # simple boolean test
+    } elsif ($type eq 'CODE') {
+        return $tests->($string); # return whatever the code ref returned
+    }
+    croak "ERROR: type of tests must be 'ARRAY', 'Regexp' or 'CODE'.\n";
+    return;
+}
 
 =head1 EXAMPLES
 
@@ -106,42 +142,6 @@ mod_perl).
                 unless String::Tests->pass( $http_request->param($field), $tests );
         }
     }
-
-=head2 EXPORT
-
-None by default
-
-=head1 METHODS
-
-=head2 pass
-
-=cut
-
-sub pass {
-    shift if $_[0] eq __PACKAGE__ or ref $_[0];
-    my ($string, $tests) = @_;
-    my $type = ref $tests;
-    if ($type eq 'ARRAY') {
-        for my $test (@$tests) { # boolean return values only when in list context
-            my $test_type = ref $test;
-            if ($test_type eq 'Regexp') {
-                return if $string !~ $test; # simple boolean test
-            } elsif ($test_type eq 'CODE') {
-                return if not $test->($string); # callback
-            } else {
-                croak "ERROR: type of tests must be 'Regexp' or 'CODE'.\n";
-            }
-        }
-        return 1; # boolean all tests passed
-    } elsif ($type eq 'Regexp') {
-        return ( $string =~ /$tests/g ) if wantarray; # assumes capture syntax
-        return $string =~ $tests; # simple boolean test
-    } elsif ($type eq 'CODE') {
-        return $tests->($string); # return whatever the code ref returned
-    }
-    croak "ERROR: invalid test type provided.\n";
-    return;
-}
 
 =head1 AUTHOR
 
