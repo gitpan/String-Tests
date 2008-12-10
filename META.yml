@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                String-Tests
-version:             0.04
+version:             0.05
 abstract:            run a series of tests on a string
 license:             ~
 author:              
